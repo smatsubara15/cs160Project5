@@ -70,18 +70,15 @@
 Start : Class {$$ = new ProgramNode($1); astRoot=$$;}
       ;
 
-Class : Class ClassB { $$=$1; $$->push_back($2);}
-      | ClassB {$$ = new std::list<ClassNode*>();$$->push_back($1);}
+Class : Class T_NAME_IDENTIFIER T_OPENBRACKET ClassB T_CLOSEBRACKET { $4->identifier_1 = new IdentifierNode($2); free($2); $$=$1; $$->push_back($4);}
+      | Class T_NAME_IDENTIFIER T_EXTENDS T_NAME_IDENTIFIER  T_OPENBRACKET ClassB T_CLOSEBRACKET 
+      { $6->identifier_1 = new IdentifierNode($2); free($2); $6->identifier_2 = new IdentifierNode($4); free($4); $$=$1; $$->push_back($6);}
+      | %empty {$$ = new std::list<ClassNode*>;}
       ;
       
-ClassB : T_NAME_IDENTIFIER T_OPENBRACKET Members Methods T_CLOSEBRACKET {$$ = new ClassNode(new IdentifierNode($1),NULL,$3,$4);}
-       | T_NAME_IDENTIFIER T_OPENBRACKET Members T_CLOSEBRACKET {$$ = new ClassNode(new IdentifierNode($1),NULL,$3,NULL);}
-       | T_NAME_IDENTIFIER T_OPENBRACKET Methods T_CLOSEBRACKET {$$ = new ClassNode(new IdentifierNode($1),NULL,NULL,$3);}
-       | T_NAME_IDENTIFIER T_OPENBRACKET T_CLOSEBRACKET {$$ = new ClassNode(new IdentifierNode($1),NULL,NULL,NULL);}
-       | T_NAME_IDENTIFIER T_EXTENDS T_NAME_IDENTIFIER  T_OPENBRACKET Members Methods T_CLOSEBRACKET {$$ = new ClassNode(new IdentifierNode($1),new IdentifierNode($3),$5,$6);}
-       | T_NAME_IDENTIFIER T_EXTENDS T_NAME_IDENTIFIER  T_OPENBRACKET Members T_CLOSEBRACKET {$$ = new ClassNode(new IdentifierNode($1),new IdentifierNode($3),$5,NULL);}
-       | T_NAME_IDENTIFIER T_EXTENDS T_NAME_IDENTIFIER  T_OPENBRACKET Methods T_CLOSEBRACKET {$$ = new ClassNode(new IdentifierNode($1),new IdentifierNode($3),NULL,$5);}
-       | T_NAME_IDENTIFIER T_EXTENDS T_NAME_IDENTIFIER  T_OPENBRACKET T_CLOSEBRACKET {$$ = new ClassNode(new IdentifierNode($1),new IdentifierNode($3),NULL,NULL);}
+ClassB : Members Methods {$$ = new ClassNode(NULL,NULL,$1,$2);}
+       | Members {$$ = new ClassNode(NULL,NULL,$1,NULL);}
+       | Methods {$$ = new ClassNode(NULL,NULL,NULL,$1);}
        | %empty {$$ = new ClassNode(NULL,NULL,NULL,NULL);}
        ;  
 
