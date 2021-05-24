@@ -92,6 +92,8 @@ void TypeCheck::visitMethodNode(MethodNode* node) {
   //save current metadata
   MethodTable* savedMethodTable = currentMethodTable;
   VariableTable* savedVariableTable = currentVariableTable;
+  currentLocalOffset = -4;
+  currentParameterOffset = 12;
   currentMethodTable = new MethodTable;
   currentVariableTable = new VariableTable;
   //set parameter type, create variable list, set return type, set currentLocalOffset
@@ -113,9 +115,10 @@ void TypeCheck::visitMethodNode(MethodNode* node) {
     },
     currentVariableTable,
     myParameters,
-    -currentLocalOffset
+    -currentLocalOffset-4
   };
   currentMethodTable->insert({node->identifier->name, myInfo});
+  //restore metadata
   currentMethodTable = savedMethodTable;
   currentVariableTable = savedVariableTable;
 }
@@ -134,7 +137,7 @@ void TypeCheck::visitMethodBodyNode(MethodBodyNode* node) {
 
 void TypeCheck::visitParameterNode(ParameterNode* node) {
   /*
-  populate currentVariableTable with parameters, set currentParameterOffset
+  insert current parameter info into currentVariableTable, increment currentParameterOffset
   */
   VariableInfo myInfo = {
     {
@@ -152,7 +155,27 @@ void TypeCheck::visitParameterNode(ParameterNode* node) {
 }
 
 void TypeCheck::visitDeclarationNode(DeclarationNode* node) {
-  // WRITEME: Replace with code if necessary
+  /*
+  insert current variables in declaration node into currentVariableTable, increment currentLocalOffset
+  */
+  node->type->accept(this);
+  node->basetype = node->type->basetype;
+  node->objectClassName = node->type->objectClassName;
+  for(auto iter=node->identifier_list->begin(); iter!=node->identifier_list->end(); iter++){
+    VariableInfo myInfo = {
+        {
+          node->basetype,
+          node->objectClassName
+        },
+        currentLocalOffset,
+        4
+      };
+    this->currentVariableTable->insert({
+      (*iter)->name,
+      myInfo
+    });
+    currentLocalOffset -= 4;
+  }
 }
 
 void TypeCheck::visitReturnStatementNode(ReturnStatementNode* node) {
