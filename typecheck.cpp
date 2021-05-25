@@ -68,29 +68,114 @@ void typeError(TypeErrorCode code) {
 
 void TypeCheck::visitProgramNode(ProgramNode* node) {
   // WRITEME: Replace with code if necessary
-  classTable = new ClassTable;
+  this->classTable = new ClassTable;
+  node->visit_children(this);
 }
 
 void TypeCheck::visitClassNode(ClassNode* node) {
   // WRITEME: Replace with code if necessary
-  // classinfo classInfo;
-  // classInfo.superClassName = node->identifier_2;
+  ClassInfo myInfo;
+  node->visit_children(this);
+  if(node->identifier_2){
+    myInfo = {node->identifier_2->name, this->currentMethodTable, this->currentVariableTable};
+  }
+  else{
+    myInfo = {"", this->currentMethodTable, this->currentVariableTable};
+  }
+  this->classTable->insert({this->currentClassName, myInfo});
 }
 
 void TypeCheck::visitMethodNode(MethodNode* node) {
-  // WRITEME: Replace with code if necessary
+  /*
+  create a MethodInfo struct and insert it into currentMethodTable
+  */
+  //save current metadata
+  MethodTable* savedMethodTable = currentMethodTable;
+  VariableTable* savedVariableTable = currentVariableTable;
+  currentLocalOffset = -4;
+  currentParameterOffset = 12;
+  currentMethodTable = new MethodTable;
+  currentVariableTable = new VariableTable;
+  //set parameter type, create variable list, set return type, set currentLocalOffset
+  node->visit_children(this);
+  node->basetype = node->methodbody->basetype;
+  node->objectClassName = node->methodbody->objectClassName;
+  //create parameter list from node->parameter_list, set currentParameterOffset
+  std::list<CompoundType> *myParameters;
+  for(auto iter=node->parameter_list->begin(); iter!=node->parameter_list->end(); iter++){
+    myParameters->push_back({
+      (*iter)->basetype,
+      (*iter)->objectClassName
+    });
+  }
+  MethodInfo myInfo = {
+    {
+      node->basetype,
+      node->objectClassName
+    },
+    currentVariableTable,
+    myParameters,
+    -currentLocalOffset-4
+  };
+  currentMethodTable->insert({node->identifier->name, myInfo});
+  //restore metadata
+  currentMethodTable = savedMethodTable;
+  currentVariableTable = savedVariableTable;
 }
 
 void TypeCheck::visitMethodBodyNode(MethodBodyNode* node) {
-  // WRITEME: Replace with code if necessary
+  /*
+  populate currentVariableTable with declarations, set currentLocalOffset,
+  set return type(MethodBodyNode type)
+  */
+  //populate currentVariableTable, set currentLocalOffset, set return type(ReturnStatementNode type)
+  node->visit_children(this);
+  //set return type(MethodBodyNode type)
+  node->basetype = node->returnstatement->basetype;
+  node->objectClassName = node->returnstatement->objectClassName;
 }
 
 void TypeCheck::visitParameterNode(ParameterNode* node) {
-  // WRITEME: Replace with code if necessary
+  /*
+  insert current parameter info into currentVariableTable, increment currentParameterOffset
+  */
+  VariableInfo myInfo = {
+    {
+      node->type->basetype,
+      node->type->objectClassName
+    },
+    currentParameterOffset,
+    4
+  };
+  currentParameterOffset += 4;
+  currentVariableTable->insert({
+    node->identifier->name,
+    myInfo
+  });
 }
 
 void TypeCheck::visitDeclarationNode(DeclarationNode* node) {
-  // WRITEME: Replace with code if necessary
+  /*
+  insert current variables in declaration node into currentVariableTable, increment currentLocalOffset
+  */
+  node->type->accept(this);
+  node->basetype = node->type->basetype;
+  node->objectClassName = node->type->objectClassName;
+  for(auto iter=node->identifier_list->begin(); iter!=node->identifier_list->end(); iter++){
+    VariableInfo myInfo = {
+        {
+          node->basetype,
+          node->objectClassName
+        },
+        currentLocalOffset,
+        4
+      };
+    this->currentVariableTable->insert({
+      (*iter)->name,
+      myInfo
+    });
+    currentLocalOffset -= 4;
+  }
 }
 
 void TypeCheck::visitReturnStatementNode(ReturnStatementNode* node) {
@@ -190,14 +275,17 @@ void TypeCheck::visitNewNode(NewNode* node) {
 }
 
 void TypeCheck::visitIntegerTypeNode(IntegerTypeNode* node) {
+  currentClassName = "Integer";
   // WRITEME: Replace with code if necessary
 }
 
 void TypeCheck::visitBooleanTypeNode(BooleanTypeNode* node) {
+  currentClassName = "Boolean";
   // WRITEME: Replace with code if necessary
 }
 
 void TypeCheck::visitObjectTypeNode(ObjectTypeNode* node) {
+  currentClassName = node->identifier->name;
   // WRITEME: Replace with code if necessary
 }
 
