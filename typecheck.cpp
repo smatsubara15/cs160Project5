@@ -275,22 +275,23 @@ void TypeCheck::visitNewNode(NewNode* node) {
 }
 
 void TypeCheck::visitIntegerTypeNode(IntegerTypeNode* node) {
-  currentClassName = "Integer";
-  // WRITEME: Replace with code if necessary
+  node->basetype = bt_integer;
+  node->objectClassName = "";
 }
 
 void TypeCheck::visitBooleanTypeNode(BooleanTypeNode* node) {
-  currentClassName = "Boolean";
-  // WRITEME: Replace with code if necessary
+  node->basetype = bt_boolean;
+  node->objectClassName = "";
 }
 
 void TypeCheck::visitObjectTypeNode(ObjectTypeNode* node) {
-  currentClassName = node->identifier->name;
-  // WRITEME: Replace with code if necessary
+  node->basetype = bt_object;
+  node->objectClassName = node->identifier->name;
 }
 
 void TypeCheck::visitNoneNode(NoneNode* node) {
-  // WRITEME: Replace with code if necessary
+  node->basetype = bt_none;
+  node->objectClassName = "";
 }
 
 void TypeCheck::visitIdentifierNode(IdentifierNode* node) {
