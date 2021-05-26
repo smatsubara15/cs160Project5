@@ -115,7 +115,13 @@ void TypeCheck::visitMethodNode(MethodNode* node) {
   currentParameterOffset = 12;
   currentVariableTable = new VariableTable;
   //set parameter type, create variable list, set return type, set currentLocalOffset
-  node->visit_children(this);
+  if(node->parameter_list){
+    for(auto iter=node->parameter_list->begin(); iter!=node->parameter_list->end(); iter++){
+      (*iter)->accept(this);
+    }
+  }
+  node->type->accept(this);
+  node->methodbody->accept(this);
   node->basetype = node->type->basetype;
   node->objectClassName = node->type->objectClassName;
   //create parameter list from node->parameter_list, set currentParameterOffset
@@ -419,39 +425,37 @@ void TypeCheck::visitMethodCallNode(MethodCallNode* node) {
 void TypeCheck::visitMemberAccessNode(MemberAccessNode* node) {
   /*
   Check for class and member existence
+  Updates the type of the member access expression
   */
-  // //update identifier type
-  // node->identifier_1->accept(this);
-  // //member access
-  // if(node->identifier_2){
-  //   //variable is not an object
-  //   if(node->identifier_1->basetype != bt_object)
-  //     typeError(not_object);
-  //   auto class_iter = this->classTable->find(node->identifier_1->objectClassName);
-  //   //variable class not defined (could be redundant)
-  //   if(class_iter == this->classTable->end())
-  //     typeError(undefined_class);
-  //   auto class_info = class_iter->second;
-  //   //check base class first
-  //   auto member_iter = class_info.members->find(node->identifier_2->name);
-  //   //if not found, check superclass next
-  //   if(member_iter == class_info.members->end()){
-  //     //no superclass
-  //     if(class_info.superClassName == "")
-  //       typeError(undefined_member);
-  //     class_iter = this->classTable->find(class_info.superClassName);
-  //   }
-  //   //super class does not exist either(could be redudant)
-  //   if(class_iter == this->classTable->end())
-  //     typeError(undefined_class);
-  //   class_info = class_iter->second;
-  //   member_iter = class_info.members->find(node->identifier_2->name);
-  //   //superclass also doesn't contain member either
-  //   if(member_iter == class_info.members->end())
-  //     typeError(undefined_member);
-  //   node->basetype = member_iter->second.type.baseType;
-  //   node->objectClassName = member_iter->second.type.objectClassName;
-  // }
+  //update identifier type
+  node->identifier_1->accept(this);
+  //variable is not an object
+  if(node->identifier_1->basetype != bt_object)
+    typeError(not_object);
+  auto class_iter = this->classTable->find(node->identifier_1->objectClassName);
+  //variable class not defined (could be redundant)
+  if(class_iter == this->classTable->end())
+    typeError(undefined_class);
+  auto class_info = class_iter->second;
+  //check base class first
+  auto member_iter = class_info.members->find(node->identifier_2->name);
+  //if not found, check superclass next
+  if(member_iter == class_info.members->end()){
+    //no superclass
+    if(class_info.superClassName == "")
+      typeError(undefined_member);
+    class_iter = this->classTable->find(class_info.superClassName);
+    //super class does not exist either(could be redudant)
+    if(class_iter == this->classTable->end())
+      typeError(undefined_class);
+    class_info = class_iter->second;
+    member_iter = class_info.members->find(node->identifier_2->name);
+    //superclass also doesn't contain member either
+    if(member_iter == class_info.members->end())
+      typeError(undefined_member);
+  }
+  node->basetype = member_iter->second.type.baseType;
+  node->objectClassName = member_iter->second.type.objectClassName;
 }
 
 void TypeCheck::visitVariableNode(VariableNode* node) {
@@ -501,24 +505,17 @@ void TypeCheck::visitIdentifierNode(IdentifierNode* node) {
   checks for existence of symbol in local space and class space (member)
   */
   //check local variable first
-
-
-  if(currentLocalOffset == -4 && currentParameterOffset == 12){
-    return;
-  }
-  else{
-    auto var_iter = this->currentVariableTable->find(node->name);
-    if(var_iter == this->currentVariableTable->end()){
-        //check member list
-        var_iter = this->classTable->find(currentClassName)->second.members->find(node->name);
-        //member list does not contain symbol
-        if(var_iter == this->classTable->find(currentClassName)->second.members->end()){
-          typeError(undefined_variable);
-        }
+  auto var_iter = this->currentVariableTable->find(node->name);
+  if(var_iter == this->currentVariableTable->end()){
+    //check member list
+    var_iter = this->classTable->find(currentClassName)->second.members->find(node->name);
+    //member list does not contain symbol
+    if(var_iter == this->classTable->find(currentClassName)->second.members->end()){
+      typeError(undefined_variable);
     }
-    node->basetype = var_iter->second.type.baseType;
-    node->objectClassName = var_iter->second.type.objectClassName;
   }
+  node->basetype = var_iter->second.type.baseType;
+  node->objectClassName = var_iter->second.type.objectClassName;
 }
 
 void TypeCheck::visitIntegerNode(IntegerNode* node) {
