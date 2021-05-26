@@ -240,34 +240,49 @@ void TypeCheck::visitAssignmentNode(AssignmentNode* node) {
   Undefined Class
   assignment type mismatch
   */
-  // CompoundType assignee_type;
-  // //first check for variable existance
-  // node->identifier_1->accept(this);
-  // //member access
-  // if(node->identifier_2){
-  //   //creat dummy member access node for type checking
-  //   MemberAccessNode man = MemberAccessNode(node->identifier_1, node->identifier_2);
-  //   man.accept(this);
-  //   assignee_type = {
-  //     man.basetype,
-  //     man.objectClassName
-  //   };
-  // }
-  // //straight forward variable
-  // else{
-  //   assignee_type = {
-  //     node->identifier_1->basetype,
-  //     node->identifier_1->objectClassName
-  //   };
-  // }
-  // node->expression->accept(this);
-  // CompoundType assigner_type = {
-  //   node->expression->basetype,
-  //   node->expression->objectClassName
-  // };
-  // if(assignee_type.baseType != assigner_type.baseType || 
-  //   assignee_type.objectClassName != assigner_type.objectClassName)
-  //   typeError(assignment_type_mismatch);
+  CompoundType assignee_type;
+  //member access
+  if(node->identifier_2){
+    //creat dummy member access node for type checking
+    MemberAccessNode man = MemberAccessNode(node->identifier_1, node->identifier_2);
+    man.accept(this);
+    assignee_type = {
+      man.basetype,
+      man.objectClassName
+    };
+  }
+  //straight forward variable
+  else{
+    //check for variable existance, update type info
+    node->identifier_1->accept(this);
+    assignee_type = {
+      node->identifier_1->basetype,
+      node->identifier_1->objectClassName
+    };
+  }
+  //check lhs, update type info
+  node->expression->accept(this);
+  CompoundType assigner_type = {
+    node->expression->basetype,
+    node->expression->objectClassName
+  };
+  if(assignee_type.baseType != assigner_type.baseType)
+    typeError(assignment_type_mismatch);
+    
+  //objects can be assigned to objects of its superclass type, check for that here
+  if(assignee_type.baseType == bt_object){
+    if(assignee_type.objectClassName != assigner_type.objectClassName){
+      auto assigner_class_iter = this->classTable->find(assignee_type.objectClassName);
+      //check for assignee class existence (probably redundant)
+      if(assigner_class_iter == this->classTable->end())
+        typeError(undefined_class);
+      //check if assigner class superclass matches assignee class
+      auto assigner_class_info = assigner_class_iter->second;
+      if(assigner_class_info.superClassName != assignee_type.objectClassName)
+        typeError(assignment_type_mismatch);
+    }
+  }
+
 }
 
 void TypeCheck::visitCallNode(CallNode* node) {
