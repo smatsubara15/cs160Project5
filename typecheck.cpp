@@ -85,7 +85,7 @@ void TypeCheck::visitClassNode(ClassNode* node) {
   else{
     myInfo = {"", this->currentMethodTable, this->currentVariableTable};
   }
-  this->classTable->insert({node->identifier_2->name, myInfo});
+  this->classTable->insert({node->identifier_1->name, myInfo});
 }
 
 void TypeCheck::visitMethodNode(MethodNode* node) {
@@ -95,16 +95,17 @@ void TypeCheck::visitMethodNode(MethodNode* node) {
   //save current metadata
   //MethodTable* savedMethodTable = currentMethodTable;
   VariableTable* savedVariableTable = currentVariableTable;
+  if(!currentMethodTable)
+    currentMethodTable =  new MethodTable();
   currentLocalOffset = -4;
   currentParameterOffset = 12;
-  currentMethodTable = new MethodTable;
   currentVariableTable = new VariableTable;
   //set parameter type, create variable list, set return type, set currentLocalOffset
   node->visit_children(this);
   node->basetype = node->type->basetype;
   node->objectClassName = node->type->objectClassName;
   //create parameter list from node->parameter_list, set currentParameterOffset
-  std::list<CompoundType> *myParameters;
+  std::list<CompoundType> *myParameters = new std::list<CompoundType>;
   for(auto iter=node->parameter_list->begin(); iter!=node->parameter_list->end(); iter++){
     myParameters->push_back({
       (*iter)->basetype,
@@ -134,14 +135,15 @@ void TypeCheck::visitMethodBodyNode(MethodBodyNode* node) {
   //populate currentVariableTable, set currentLocalOffset, set return type(ReturnStatementNode type)
   node->visit_children(this);
   //set return type(MethodBodyNode type)
-  node->basetype = node->returnstatement->basetype;
-  node->objectClassName = node->returnstatement->objectClassName;
+  // node->basetype = node->returnstatement->basetype;
+  // node->objectClassName = node->returnstatement->objectClassName;
 }
 
 void TypeCheck::visitParameterNode(ParameterNode* node) {
   /*
   insert current parameter info into currentVariableTable, increment currentParameterOffset
   */
+  node->type->accept(this);
   VariableInfo myInfo = {
     {
       node->type->basetype,
@@ -161,11 +163,13 @@ void TypeCheck::visitDeclarationNode(DeclarationNode* node) {
   /*
   insert current variables in declaration node into currentVariableTable, increment currentLocalOffset
   */
+  //update basetype of type node
   node->type->accept(this);
+  //get basetype from type node
   node->basetype = node->type->basetype;
   node->objectClassName = node->type->objectClassName;
   int offset;
-  if(currentMethodTable==NULL){
+  if(!currentMethodTable){
     offset = currentMemberOffset;
   }
   else{
@@ -184,14 +188,14 @@ void TypeCheck::visitDeclarationNode(DeclarationNode* node) {
       (*iter)->name,
       myInfo
     });
-    if(currentMethodTable==NULL){
+    if(!currentMethodTable){
       offset += 4;
     }
     else{
       offset -= 4;
     }
   }
-  if(currentMethodTable==NULL){
+  if(!currentMethodTable){
     currentMemberOffset = offset;
   }
   else{
@@ -200,7 +204,12 @@ void TypeCheck::visitDeclarationNode(DeclarationNode* node) {
 }
 
 void TypeCheck::visitReturnStatementNode(ReturnStatementNode* node) {
-  // WRITEME: Replace with code if necessary
+  /*set up return type*/
+  node->visit_children(this);
+  node->basetype = bt_none;
+  node->objectClassName = "";
+  // node->basetype = node->expression->basetype;
+  // node->objectClassName = node->expression->objectClassName;
 }
 
 void TypeCheck::visitAssignmentNode(AssignmentNode* node) {
