@@ -75,6 +75,9 @@ void TypeCheck::visitProgramNode(ProgramNode* node) {
 void TypeCheck::visitClassNode(ClassNode* node) {
   // WRITEME: Replace with code if necessary
   ClassInfo myInfo;
+  currentMethodTable = NULL;
+  currentVariableTable = new VariableTable;
+  currentMemberOffset = 0;
   node->visit_children(this);
   if(node->identifier_2){
     myInfo = {node->identifier_2->name, this->currentMethodTable, this->currentVariableTable};
@@ -82,7 +85,7 @@ void TypeCheck::visitClassNode(ClassNode* node) {
   else{
     myInfo = {"", this->currentMethodTable, this->currentVariableTable};
   }
-  this->classTable->insert({this->currentClassName, myInfo});
+  this->classTable->insert({node->identifier_2->name, myInfo});
 }
 
 void TypeCheck::visitMethodNode(MethodNode* node) {
@@ -90,7 +93,7 @@ void TypeCheck::visitMethodNode(MethodNode* node) {
   create a MethodInfo struct and insert it into currentMethodTable
   */
   //save current metadata
-  MethodTable* savedMethodTable = currentMethodTable;
+  //MethodTable* savedMethodTable = currentMethodTable;
   VariableTable* savedVariableTable = currentVariableTable;
   currentLocalOffset = -4;
   currentParameterOffset = 12;
@@ -98,8 +101,8 @@ void TypeCheck::visitMethodNode(MethodNode* node) {
   currentVariableTable = new VariableTable;
   //set parameter type, create variable list, set return type, set currentLocalOffset
   node->visit_children(this);
-  node->basetype = node->methodbody->basetype;
-  node->objectClassName = node->methodbody->objectClassName;
+  node->basetype = node->type->basetype;
+  node->objectClassName = node->type->objectClassName;
   //create parameter list from node->parameter_list, set currentParameterOffset
   std::list<CompoundType> *myParameters;
   for(auto iter=node->parameter_list->begin(); iter!=node->parameter_list->end(); iter++){
@@ -119,7 +122,7 @@ void TypeCheck::visitMethodNode(MethodNode* node) {
   };
   currentMethodTable->insert({node->identifier->name, myInfo});
   //restore metadata
-  currentMethodTable = savedMethodTable;
+  //currentMethodTable = savedMethodTable;
   currentVariableTable = savedVariableTable;
 }
 
@@ -161,20 +164,38 @@ void TypeCheck::visitDeclarationNode(DeclarationNode* node) {
   node->type->accept(this);
   node->basetype = node->type->basetype;
   node->objectClassName = node->type->objectClassName;
+  int offset;
+  if(currentMethodTable==NULL){
+    offset = currentMemberOffset;
+  }
+  else{
+    offset = currentLocalOffset;
+  }
   for(auto iter=node->identifier_list->begin(); iter!=node->identifier_list->end(); iter++){
     VariableInfo myInfo = {
         {
           node->basetype,
           node->objectClassName
         },
-        currentLocalOffset,
+        offset,
         4
       };
     this->currentVariableTable->insert({
       (*iter)->name,
       myInfo
     });
-    currentLocalOffset -= 4;
+    if(currentMethodTable==NULL){
+      offset += 4;
+    }
+    else{
+      offset -= 4;
+    }
+  }
+  if(currentMethodTable==NULL){
+    currentMemberOffset = offset;
+  }
+  else{
+    currentLocalOffset = offset;
   }
 }
 
