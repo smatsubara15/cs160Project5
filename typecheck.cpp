@@ -78,7 +78,14 @@ void TypeCheck::visitClassNode(ClassNode* node) {
   currentMethodTable = NULL;
   currentVariableTable = new VariableTable;
   currentMemberOffset = 0;
-  node->visit_children(this);
+  currentClassName = node->identifier_1->name;
+  //visit the member declarations
+  if(node->declaration_list){
+    for(auto iter=node->declaration_list->begin(); iter!=node->declaration_list->end(); iter++){
+    (*iter)->accept(this);
+    }
+  }
+  //update member table ASAP for type checking in methods
   if(node->identifier_2){
     myInfo = {node->identifier_2->name, this->currentMethodTable, this->currentVariableTable};
   }
@@ -86,6 +93,13 @@ void TypeCheck::visitClassNode(ClassNode* node) {
     myInfo = {"", this->currentMethodTable, this->currentVariableTable};
   }
   this->classTable->insert({node->identifier_1->name, myInfo});
+  //update method table
+  if(node->method_list){
+    for(auto iter=node->method_list->begin(); iter!=node->method_list->end(); iter++){
+      (*iter)->accept(this);
+    }
+  }
+  this->classTable->find(currentClassName)->second.methods = currentMethodTable;
 }
 
 void TypeCheck::visitMethodNode(MethodNode* node) {
@@ -208,12 +222,46 @@ void TypeCheck::visitReturnStatementNode(ReturnStatementNode* node) {
   node->visit_children(this);
   node->basetype = bt_none;
   node->objectClassName = "";
-  // node->basetype = node->expression->basetype;
-  // node->objectClassName = node->expression->objectClassName;
+  node->basetype = node->expression->basetype;
+  node->objectClassName = node->expression->objectClassName;
 }
 
 void TypeCheck::visitAssignmentNode(AssignmentNode* node) {
-  // WRITEME: Replace with code if necessary
+  /*
+  Undefined variable
+  Not an object
+  Undefined Member
+  Undefined Class
+  assignment type mismatch
+  */
+  // CompoundType assignee_type;
+  // //first check for variable existance
+  // node->identifier_1->accept(this);
+  // //member access
+  // if(node->identifier_2){
+  //   //creat dummy member access node for type checking
+  //   MemberAccessNode man = MemberAccessNode(node->identifier_1, node->identifier_2);
+  //   man.accept(this);
+  //   assignee_type = {
+  //     man.basetype,
+  //     man.objectClassName
+  //   };
+  // }
+  // //straight forward variable
+  // else{
+  //   assignee_type = {
+  //     node->identifier_1->basetype,
+  //     node->identifier_1->objectClassName
+  //   };
+  // }
+  // node->expression->accept(this);
+  // CompoundType assigner_type = {
+  //   node->expression->basetype,
+  //   node->expression->objectClassName
+  // };
+  // if(assignee_type.baseType != assigner_type.baseType || 
+  //   assignee_type.objectClassName != assigner_type.objectClassName)
+  //   typeError(assignment_type_mismatch);
 }
 
 void TypeCheck::visitCallNode(CallNode* node) {
@@ -285,7 +333,41 @@ void TypeCheck::visitMethodCallNode(MethodCallNode* node) {
 }
 
 void TypeCheck::visitMemberAccessNode(MemberAccessNode* node) {
-  // WRITEME: Replace with code if necessary
+  /*
+  Check for class and member existence
+  */
+  // //update identifier type
+  // node->identifier_1->accept(this);
+  // //member access
+  // if(node->identifier_2){
+  //   //variable is not an object
+  //   if(node->identifier_1->basetype != bt_object)
+  //     typeError(not_object);
+  //   auto class_iter = this->classTable->find(node->identifier_1->objectClassName);
+  //   //variable class not defined (could be redundant)
+  //   if(class_iter == this->classTable->end())
+  //     typeError(undefined_class);
+  //   auto class_info = class_iter->second;
+  //   //check base class first
+  //   auto member_iter = class_info.members->find(node->identifier_2->name);
+  //   //if not found, check superclass next
+  //   if(member_iter == class_info.members->end()){
+  //     //no superclass
+  //     if(class_info.superClassName == "")
+  //       typeError(undefined_member);
+  //     class_iter = this->classTable->find(class_info.superClassName);
+  //   }
+  //   //super class does not exist either(could be redudant)
+  //   if(class_iter == this->classTable->end())
+  //     typeError(undefined_class);
+  //   class_info = class_iter->second;
+  //   member_iter = class_info.members->find(node->identifier_2->name);
+  //   //superclass also doesn't contain member either
+  //   if(member_iter == class_info.members->end())
+  //     typeError(undefined_member);
+  //   node->basetype = member_iter->second.type.baseType;
+  //   node->objectClassName = member_iter->second.type.objectClassName;
+  // }
 }
 
 void TypeCheck::visitVariableNode(VariableNode* node) {
@@ -325,11 +407,24 @@ void TypeCheck::visitNoneNode(NoneNode* node) {
 }
 
 void TypeCheck::visitIdentifierNode(IdentifierNode* node) {
-  // WRITEME: Replace with code if necessary
+  /*
+  checks for existence of symbol in local space and class space (member)
+  */
+//   //check local variable first
+//   auto var_iter = this->currentVariableTable->find(node->name);
+//   if(var_iter == this->currentVariableTable->end()){
+//       //check member list
+//       var_iter = this->classTable->find(currentClassName)->second.members->find(node->name);
+//       //member list does not contain symbol
+//       if(var_iter == this->classTable->find(currentClassName)->second.members->end()){
+//         typeError(undefined_variable);
+//       }
+//   }
+//   node->basetype = var_iter->second.type.baseType;
+//   node->objectClassName = var_iter->second.type.objectClassName;
 }
 
 void TypeCheck::visitIntegerNode(IntegerNode* node) {
-  // WRITEME: Replace with code if necessary
 }
 
 
