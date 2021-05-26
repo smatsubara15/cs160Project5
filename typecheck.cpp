@@ -110,7 +110,7 @@ void TypeCheck::visitMethodNode(MethodNode* node) {
   //MethodTable* savedMethodTable = currentMethodTable;
   VariableTable* savedVariableTable = currentVariableTable;
   if(!currentMethodTable)
-  currentMethodTable =  new MethodTable();
+    currentMethodTable =  new MethodTable;
   currentLocalOffset = -4;
   currentParameterOffset = 12;
   currentVariableTable = new VariableTable;
@@ -354,13 +354,11 @@ void TypeCheck::visitGreaterEqualNode(GreaterEqualNode* node) {
 
 void TypeCheck::visitEqualNode(EqualNode* node) {
   //Equal expects two operands of the same type, which must be both integer or both boolean.
+  node->visit_children(this);
   if(node->expression_1->basetype != node->expression_2->basetype){
     typeError(expression_type_mismatch);
   }
-  else if(node->expression_1->basetype != bt_integer ^ node->expression_2->basetype != bt_integer){
-    typeError(expression_type_mismatch);
-  }
-  else if(node->expression_1->basetype != bt_boolean ^ node->expression_2->basetype != bt_boolean){
+  else if(node->expression_1->basetype != bt_integer && node->expression_1->basetype != bt_boolean){
     typeError(expression_type_mismatch);
   }
   else{
@@ -370,7 +368,7 @@ void TypeCheck::visitEqualNode(EqualNode* node) {
 }
 
 void TypeCheck::visitAndNode(AndNode* node) {
-  // And, Or, Not all expect boolean operands (two or one) and produce a boolean.
+  //And, Or, Not all expect boolean operands (two or one) and produce a boolean.
   node->visit_children(this);
   if(node->expression_1->basetype != bt_boolean || node->expression_2->basetype != bt_boolean){
     typeError(expression_type_mismatch);
@@ -415,7 +413,7 @@ void TypeCheck::visitNegationNode(NegationNode* node) {
 }
 
 void TypeCheck::visitMethodCallNode(MethodCallNode* node) {
-  
+  // WRITEME: Replace with code if necessary
 }
 
 void TypeCheck::visitMemberAccessNode(MemberAccessNode* node) {
@@ -460,26 +458,6 @@ void TypeCheck::visitVariableNode(VariableNode* node) {
   node->visit_children(this);
   node->basetype = node->identifier->basetype;
   node->objectClassName = node->identifier->objectClassName;
-
-  // Variable and MemberAccess produce the type of the corresponding variable or member.
-
-  // std::string var = node->identifier->name;
-  // if(currentVariableTable->find(var)==currentVariableTable->end()){
-  //   typeError(undefined_variable);
-  // }
-  // else{
-  //   node->basetype = (*currentVariableTable)[var].type.baseType;
-  //   node->objectClassName = (*currentVariableTable)[var].type.objectClassName;
-  //   return;
-  // }
-  // if((*classTable)[currentClassName].members->find(var)==(*classTable)[currentClassName].members->end()){
-  //   typeError(undefined_variable);
-  // }
-  // else{
-  //   node->basetype = (*classTable)[currentClassName].members->operator[](var).type.baseType;
-  //   node->basetype = (*classTable)[currentClassName].members->operator[](var).type.objectClassName;
-  //   return;
-  // }
 }
 
 void TypeCheck::visitIntegerLiteralNode(IntegerLiteralNode* node) {
@@ -522,18 +500,25 @@ void TypeCheck::visitIdentifierNode(IdentifierNode* node) {
   /*
   checks for existence of symbol in local space and class space (member)
   */
-//   //check local variable first
-//   auto var_iter = this->currentVariableTable->find(node->name);
-//   if(var_iter == this->currentVariableTable->end()){
-//       //check member list
-//       var_iter = this->classTable->find(currentClassName)->second.members->find(node->name);
-//       //member list does not contain symbol
-//       if(var_iter == this->classTable->find(currentClassName)->second.members->end()){
-//         typeError(undefined_variable);
-//       }
-//   }
-//   node->basetype = var_iter->second.type.baseType;
-//   node->objectClassName = var_iter->second.type.objectClassName;
+  //check local variable first
+
+
+  if(currentLocalOffset == -4 && currentParameterOffset == 12){
+    return;
+  }
+  else{
+    auto var_iter = this->currentVariableTable->find(node->name);
+    if(var_iter == this->currentVariableTable->end()){
+        //check member list
+        var_iter = this->classTable->find(currentClassName)->second.members->find(node->name);
+        //member list does not contain symbol
+        if(var_iter == this->classTable->find(currentClassName)->second.members->end()){
+          typeError(undefined_variable);
+        }
+    }
+    node->basetype = var_iter->second.type.baseType;
+    node->objectClassName = var_iter->second.type.objectClassName;
+  }
 }
 
 void TypeCheck::visitIntegerNode(IntegerNode* node) {
