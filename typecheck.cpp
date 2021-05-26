@@ -96,7 +96,7 @@ void TypeCheck::visitMethodNode(MethodNode* node) {
   //MethodTable* savedMethodTable = currentMethodTable;
   VariableTable* savedVariableTable = currentVariableTable;
   if(!currentMethodTable)
-    currentMethodTable =  new MethodTable();
+  currentMethodTable =  new MethodTable();
   currentLocalOffset = -4;
   currentParameterOffset = 12;
   currentVariableTable = new VariableTable;
@@ -237,51 +237,137 @@ void TypeCheck::visitPrintNode(PrintNode* node) {
 }
 
 void TypeCheck::visitPlusNode(PlusNode* node) {
-  // WRITEME: Replace with code if necessary
+  node->visit_children(this);
+  //Plus, Minus, Times, Divide, Negation all expect integer operands (two or one) and produce an integer.
+  if(node->expression_1->basetype != bt_integer || node->expression_2->basetype != bt_integer){
+    typeError(expression_type_mismatch);
+  }
+  else{
+    node->basetype = bt_integer;
+    node->objectClassName = "";
+  }
 }
 
 void TypeCheck::visitMinusNode(MinusNode* node) {
-  // WRITEME: Replace with code if necessary
+  node->visit_children(this);
+  if(node->expression_1->basetype != bt_integer || node->expression_2->basetype != bt_integer){
+    typeError(expression_type_mismatch);
+  }
+  else{
+    node->basetype = bt_integer;
+    node->objectClassName = "";
+  }
 }
 
 void TypeCheck::visitTimesNode(TimesNode* node) {
-  // WRITEME: Replace with code if necessary
-}
+  node->visit_children(this);
+  if(node->expression_1->basetype != bt_integer || node->expression_2->basetype != bt_integer){
+    typeError(expression_type_mismatch);
+  }
+  else{
+    node->basetype = bt_integer;
+    node->objectClassName = "";
+  }
+} 
 
 void TypeCheck::visitDivideNode(DivideNode* node) {
-  // WRITEME: Replace with code if necessary
+  node->visit_children(this);
+  if(node->expression_1->basetype != bt_integer || node->expression_2->basetype != bt_integer){
+    typeError(expression_type_mismatch);
+  }
+  else{
+    node->basetype = bt_integer;
+    node->objectClassName = "";
+  }
 }
 
 void TypeCheck::visitGreaterNode(GreaterNode* node) {
-  // WRITEME: Replace with code if necessary
+  //Greater and GreaterEqual expect two integer operands and produce a boolean.
+  node->visit_children(this);
+  if(node->expression_1->basetype != bt_integer || node->expression_2->basetype != bt_integer){
+    typeError(expression_type_mismatch);
+  }
+  else{
+    node->basetype = bt_boolean;
+    node->objectClassName = "";
+  }
 }
 
 void TypeCheck::visitGreaterEqualNode(GreaterEqualNode* node) {
-  // WRITEME: Replace with code if necessary
+  node->visit_children(this);
+  if(node->expression_1->basetype != bt_integer || node->expression_2->basetype != bt_integer){
+    typeError(expression_type_mismatch);
+  }
+  else{
+    node->basetype = bt_boolean;
+    node->objectClassName = "";
+  }
 }
 
 void TypeCheck::visitEqualNode(EqualNode* node) {
-  // WRITEME: Replace with code if necessary
+  //Equal expects two operands of the same type, which must be both integer or both boolean.
+  if(node->expression_1->basetype != node->expression_2->basetype){
+    typeError(expression_type_mismatch);
+  }
+  else if(node->expression_1->basetype != bt_integer ^ node->expression_2->basetype != bt_integer){
+    typeError(expression_type_mismatch);
+  }
+  else if(node->expression_1->basetype != bt_boolean ^ node->expression_2->basetype != bt_boolean){
+    typeError(expression_type_mismatch);
+  }
+  else{
+    node->basetype = bt_boolean;
+    node->objectClassName = "";
+  }
 }
 
 void TypeCheck::visitAndNode(AndNode* node) {
-  // WRITEME: Replace with code if necessary
+  // And, Or, Not all expect boolean operands (two or one) and produce a boolean.
+  node->visit_children(this);
+  if(node->expression_1->basetype != bt_boolean || node->expression_2->basetype != bt_boolean){
+    typeError(expression_type_mismatch);
+  }
+  else{
+    node->basetype = bt_boolean;
+    node->objectClassName = "";
+  }
 }
 
 void TypeCheck::visitOrNode(OrNode* node) {
-  // WRITEME: Replace with code if necessary
+  node->visit_children(this);
+  if(node->expression_1->basetype != bt_boolean || node->expression_2->basetype != bt_boolean){
+    typeError(expression_type_mismatch);
+  }
+  else{
+    node->basetype = bt_boolean;
+    node->objectClassName = "";
+  }
 }
 
 void TypeCheck::visitNotNode(NotNode* node) {
-  // WRITEME: Replace with code if necessary
+  node->visit_children(this);
+  if(node->expression->basetype != bt_boolean){
+    typeError(expression_type_mismatch);
+  }
+  else{
+    node->basetype = bt_boolean;
+    node->objectClassName = "";
+  }
 }
 
 void TypeCheck::visitNegationNode(NegationNode* node) {
-  // WRITEME: Replace with code if necessary
+  node->visit_children(this);
+  if(node->expression->basetype != bt_integer){
+    typeError(expression_type_mismatch);
+  }
+  else{
+    node->basetype = bt_integer;
+    node->objectClassName = "";
+  }
 }
 
 void TypeCheck::visitMethodCallNode(MethodCallNode* node) {
-  // WRITEME: Replace with code if necessary
+  
 }
 
 void TypeCheck::visitMemberAccessNode(MemberAccessNode* node) {
@@ -289,15 +375,41 @@ void TypeCheck::visitMemberAccessNode(MemberAccessNode* node) {
 }
 
 void TypeCheck::visitVariableNode(VariableNode* node) {
-  // WRITEME: Replace with code if necessary
+  node->visit_children(this);
+  node->basetype = node->identifier->basetype;
+  node->objectClassName = node->identifier->objectClassName;
+
+  // Variable and MemberAccess produce the type of the corresponding variable or member.
+
+  // std::string var = node->identifier->name;
+  // if(currentVariableTable->find(var)==currentVariableTable->end()){
+  //   typeError(undefined_variable);
+  // }
+  // else{
+  //   node->basetype = (*currentVariableTable)[var].type.baseType;
+  //   node->objectClassName = (*currentVariableTable)[var].type.objectClassName;
+  //   return;
+  // }
+  // if((*classTable)[currentClassName].members->find(var)==(*classTable)[currentClassName].members->end()){
+  //   typeError(undefined_variable);
+  // }
+  // else{
+  //   node->basetype = (*classTable)[currentClassName].members->operator[](var).type.baseType;
+  //   node->basetype = (*classTable)[currentClassName].members->operator[](var).type.objectClassName;
+  //   return;
+  // }
 }
 
 void TypeCheck::visitIntegerLiteralNode(IntegerLiteralNode* node) {
   // WRITEME: Replace with code if necessary
+  node->basetype = bt_integer;
+  node->objectClassName = "";
 }
 
 void TypeCheck::visitBooleanLiteralNode(BooleanLiteralNode* node) {
   // WRITEME: Replace with code if necessary
+  node->basetype = bt_boolean;
+  node->objectClassName = "";
 }
 
 void TypeCheck::visitNewNode(NewNode* node) {
