@@ -507,7 +507,7 @@ void TypeCheck::visitMethodCallNode(MethodCallNode* node) {
     if(super_class_iter==this->classTable->end())
       typeError(undefined_method);
     auto super_class_info = super_class_iter->second;
-    method_iter = super_class_info.methods->find(node->identifier_1->name);
+    method_iter = super_class_info.methods->find(method_name);
     //superclass doesn't have method either
     if(method_iter == super_class_info.methods->end())
       typeError(undefined_method);

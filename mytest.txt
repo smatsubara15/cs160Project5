@@ -162,6 +162,7 @@ Main {
 
 
     main() -> none {
+        
         class1 local0;
         integer local1;
         class2 local2;
@@ -179,6 +180,7 @@ Main {
             }
             local0.f3();
         }
+        
         
 
     }
