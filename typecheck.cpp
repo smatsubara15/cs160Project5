@@ -67,7 +67,6 @@ void typeError(TypeErrorCode code) {
 // Not all functions must have code, many may be left empty.
 
 void TypeCheck::visitProgramNode(ProgramNode* node) {
-  // WRITEME: Replace with code if necessary
   this->classTable = new ClassTable;
   node->visit_children(this);
   if(this->classTable->find("Main")==this->classTable->end()){
@@ -84,7 +83,6 @@ void TypeCheck::visitProgramNode(ProgramNode* node) {
   }
 }
 void TypeCheck::visitClassNode(ClassNode* node) {
-  // WRITEME: Replace with code if necessary
   ClassInfo myInfo;
   currentClassName = node->identifier_1->name;
   currentMethodTable = NULL;
@@ -330,7 +328,6 @@ void TypeCheck::visitIfElseNode(IfElseNode* node) {
 }
 
 void TypeCheck::visitWhileNode(WhileNode* node) {
-  // WRITEME: Replace with code if necessary
   node->visit_children(this);
   if(node->expression->basetype != bt_boolean){
     typeError(while_predicate_type_mismatch);
@@ -338,7 +335,6 @@ void TypeCheck::visitWhileNode(WhileNode* node) {
 }
 
 void TypeCheck::visitDoWhileNode(DoWhileNode* node) {
-  // WRITEME: Replace with code if necessary
   node->visit_children(this);
   if(node->expression->basetype != bt_boolean){
     typeError(do_while_predicate_type_mismatch);
@@ -346,7 +342,6 @@ void TypeCheck::visitDoWhileNode(DoWhileNode* node) {
 }
 
 void TypeCheck::visitPrintNode(PrintNode* node) {
-  // WRITEME: Replace with code if necessary
   node->visit_children(this);
 }
 
@@ -585,27 +580,30 @@ void TypeCheck::visitVariableNode(VariableNode* node) {
 }
 
 void TypeCheck::visitIntegerLiteralNode(IntegerLiteralNode* node) {
-  // WRITEME: Replace with code if necessary
   node->basetype = bt_integer;
   node->objectClassName = "";
 }
 
 void TypeCheck::visitBooleanLiteralNode(BooleanLiteralNode* node) {
-  // WRITEME: Replace with code if necessary
   node->basetype = bt_boolean;
   node->objectClassName = "";
 }
 
 void TypeCheck::visitNewNode(NewNode* node) {
-  // WRITEME: Replace with code if necessary
+  //New produces an object of the class whose constructor is called.
   if(this->classTable->find(node->identifier->name)==this->classTable->end()){
     typeError(undefined_class);
   }
   if(node->expression_list){
-    for(auto iter=node->expression_list->begin(); iter!=node->expression_list->end(); iter++){
-      (*iter)->accept(this);
-    }
+    //creat dummy methodCall node for type checking
+    // MethodCallNode mcn = MethodCallNode(node->identifier, NULL,node->expression_list);
+    // mcn.accept(this);
+    // for(auto iter=node->expression_list->begin(); iter!=node->expression_list->end(); iter++){
+    //   (*iter)->accept(this);
+    // }
   }
+  node->basetype = bt_object;
+  node->objectClassName = node->identifier->name;
 }
 
 void TypeCheck::visitIntegerTypeNode(IntegerTypeNode* node) {
