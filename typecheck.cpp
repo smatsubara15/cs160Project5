@@ -220,6 +220,11 @@ void TypeCheck::visitDeclarationNode(DeclarationNode* node) {
   //get basetype from type node
   node->basetype = node->type->basetype;
   node->objectClassName = node->type->objectClassName;
+  //check for class existence
+  if(node->basetype==bt_object){
+    if(this->classTable->find(node->objectClassName)==this->classTable->end())
+      typeError(undefined_class);
+  }
   int offset;
   if(!currentMethodTable){
     offset = currentMemberOffset;
@@ -595,17 +600,26 @@ void TypeCheck::visitBooleanLiteralNode(BooleanLiteralNode* node) {
 }
 
 void TypeCheck::visitNewNode(NewNode* node) {
+  auto new_class = this->classTable->find(node->identifier->name);
+  auto constructor = node->identifier->name;
   //New produces an object of the class whose constructor is called.
-  if(this->classTable->find(node->identifier->name)==this->classTable->end()){
+  if(new_class==this->classTable->end()){
     typeError(undefined_class);
   }
   if(node->expression_list){
-    //creat dummy methodCall node for type checking
-    // MethodCallNode mcn = MethodCallNode(node->identifier, NULL,node->expression_list);
-    // mcn.accept(this);
-    // for(auto iter=node->expression_list->begin(); iter!=node->expression_list->end(); iter++){
-    //   (*iter)->accept(this);
-    // }
+    auto constructor_iter = new_class->second.methods->find(constructor);
+    if(constructor_iter == new_class->second.methods->end())
+      typeError(undefined_class);
+    auto input_iter = node->expression_list->begin();
+    auto arg_iter = constructor_iter->second.parameters->begin();
+    while(input_iter != node->expression_list->end()){
+      (*input_iter)->accept(this);
+      if((*input_iter)->basetype!=arg_iter->baseType || 
+          (*input_iter)->objectClassName!=arg_iter->objectClassName)
+          typeError(argument_type_mismatch);
+      input_iter++;
+      arg_iter++;
+    }
   }
   node->basetype = bt_object;
   node->objectClassName = node->identifier->name;
