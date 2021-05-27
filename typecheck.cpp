@@ -75,17 +75,11 @@ void TypeCheck::visitProgramNode(ProgramNode* node) {
 void TypeCheck::visitClassNode(ClassNode* node) {
   // WRITEME: Replace with code if necessary
   ClassInfo myInfo;
-  currentMethodTable = NULL;
-  currentVariableTable = new VariableTable;
-  currentMemberOffset = 0;
   currentClassName = node->identifier_1->name;
-  //visit the member declarations
-  if(node->declaration_list){
-    for(auto iter=node->declaration_list->begin(); iter!=node->declaration_list->end(); iter++){
-    (*iter)->accept(this);
-    }
-  }
-  //update member table ASAP for type checking in methods
+  currentMethodTable = NULL;
+  currentMemberOffset = 0;
+  //initialize variableTable
+  currentVariableTable = new VariableTable;
   if(node->identifier_2){
     myInfo = {node->identifier_2->name, this->currentMethodTable, this->currentVariableTable};
   }
@@ -93,58 +87,74 @@ void TypeCheck::visitClassNode(ClassNode* node) {
     myInfo = {"", this->currentMethodTable, this->currentVariableTable};
   }
   this->classTable->insert({node->identifier_1->name, myInfo});
-  //update method table
+  //visit the member declarations first
+  //update member table ASAP for type checking
+  if(node->declaration_list){
+    for(auto iter=node->declaration_list->begin(); iter!=node->declaration_list->end(); iter++){
+    (*iter)->accept(this);
+    }
+  }
+
+  //initialize methodTable
+  currentMethodTable = new MethodTable;
+  this->classTable->find(currentClassName)->second.methods = currentMethodTable;
+  //vist method nodes and update method table
   if(node->method_list){
     for(auto iter=node->method_list->begin(); iter!=node->method_list->end(); iter++){
       (*iter)->accept(this);
     }
   }
-  this->classTable->find(currentClassName)->second.methods = currentMethodTable;
 }
 
 void TypeCheck::visitMethodNode(MethodNode* node) {
   /*
   create a MethodInfo struct and insert it into currentMethodTable
   */
-  //save current metadata
-  //MethodTable* savedMethodTable = currentMethodTable;
-  VariableTable* savedVariableTable = currentVariableTable;
-  if(!currentMethodTable)
-    currentMethodTable =  new MethodTable;
   currentLocalOffset = -4;
   currentParameterOffset = 12;
   currentVariableTable = new VariableTable;
-  //set parameter type, create variable list, set return type, set currentLocalOffset
+  std::list<CompoundType> *myParameters = new std::list<CompoundType>;
+  //uninitated info
+  MethodInfo myInfo = {
+    {
+      bt_none,
+      ""
+    },
+    currentVariableTable,
+    myParameters,
+    0
+  };
+  currentMethodTable->insert({node->identifier->name, myInfo});
+
+  //set parameter type, populate variable list with parameters, set currentParameterOffset
   if(node->parameter_list){
     for(auto iter=node->parameter_list->begin(); iter!=node->parameter_list->end(); iter++){
       (*iter)->accept(this);
     }
   }
   node->type->accept(this);
-  node->methodbody->accept(this);
   node->basetype = node->type->basetype;
   node->objectClassName = node->type->objectClassName;
+  currentMethodTable->find(node->identifier->name)->second.returnType.baseType = node->basetype;
+  currentMethodTable->find(node->identifier->name)->second.returnType.objectClassName = node->objectClassName;
+  if(node->identifier->name == currentClassName){
+    if(node->basetype != bt_none || node->objectClassName != "")
+      typeError(constructor_returns_type);
+  }
+  //update return type, populate variable table with local variables, set currentLocalOffset
+  node->methodbody->accept(this);
+  if(node->methodbody->basetype != node->basetype || node->methodbody->objectClassName != node->objectClassName)
+    typeError(return_type_mismatch);
+  currentMethodTable->find(node->identifier->name)->second.localsSize = (-currentLocalOffset-4);
   //create parameter list from node->parameter_list, set currentParameterOffset
-  std::list<CompoundType> *myParameters = new std::list<CompoundType>;
   for(auto iter=node->parameter_list->begin(); iter!=node->parameter_list->end(); iter++){
+    (*iter)->accept(this);
     myParameters->push_back({
       (*iter)->basetype,
       (*iter)->objectClassName
     });
   }
-  MethodInfo myInfo = {
-    {
-      node->basetype,
-      node->objectClassName
-    },
-    currentVariableTable,
-    myParameters,
-    -currentLocalOffset-4
-  };
-  currentMethodTable->insert({node->identifier->name, myInfo});
-  //restore metadata
-  //currentMethodTable = savedMethodTable;
-  currentVariableTable = savedVariableTable;
+
 }
 
 void TypeCheck::visitMethodBodyNode(MethodBodyNode* node) {
@@ -155,8 +165,14 @@ void TypeCheck::visitMethodBodyNode(MethodBodyNode* node) {
   //populate currentVariableTable, set currentLocalOffset, set return type(ReturnStatementNode type)
   node->visit_children(this);
   //set return type(MethodBodyNode type)
-  // node->basetype = node->returnstatement->basetype;
-  // node->objectClassName = node->returnstatement->objectClassName;
+  if(node->returnstatement){
+    node->basetype = node->returnstatement->basetype;
+    node->objectClassName = node->returnstatement->objectClassName;
+  }
+  else{
+    node->basetype = bt_none;
+    node->objectClassName = "";
+  }
 }
 
 void TypeCheck::visitParameterNode(ParameterNode* node) {
@@ -177,6 +193,8 @@ void TypeCheck::visitParameterNode(ParameterNode* node) {
     node->identifier->name,
     myInfo
   });
+  node->basetype = node->type->basetype;
+  node->objectClassName = node->type->objectClassName;
 }
 
 void TypeCheck::visitDeclarationNode(DeclarationNode* node) {
@@ -268,7 +286,7 @@ void TypeCheck::visitAssignmentNode(AssignmentNode* node) {
   };
   if(assignee_type.baseType != assigner_type.baseType)
     typeError(assignment_type_mismatch);
-    
+
   //objects can be assigned to objects of its superclass type, check for that here
   if(assignee_type.baseType == bt_object){
     if(assignee_type.objectClassName != assigner_type.objectClassName){
@@ -286,7 +304,12 @@ void TypeCheck::visitAssignmentNode(AssignmentNode* node) {
 }
 
 void TypeCheck::visitCallNode(CallNode* node) {
-  // WRITEME: Replace with code if necessary
+  /*
+  check method call, update node type based on method call
+  */
+  node->visit_children(this);
+  node->basetype = node->methodcall->basetype;
+  node->objectClassName = node->methodcall->objectClassName;
 }
 
 void TypeCheck::visitIfElseNode(IfElseNode* node) {
@@ -434,7 +457,67 @@ void TypeCheck::visitNegationNode(NegationNode* node) {
 }
 
 void TypeCheck::visitMethodCallNode(MethodCallNode* node) {
-  // WRITEME: Replace with code if necessary
+  /*
+  checks method existence, signature, updates node type
+  */
+  //check for method existence
+  //current class method call
+  MethodInfo method_info;
+  ClassInfo class_info;
+  std::string method_name;
+  //external class method call
+  if(node->identifier_2){
+    node->identifier_1->accept(this);
+    if(node->identifier_1->basetype!=bt_object)
+      typeError(not_object);
+    //get class info from found class
+    class_info = this->classTable->find(node->identifier_1->objectClassName)->second;
+    method_name = node->identifier_2->name;
+  }
+  else{
+    //get current class info
+    class_info = this->classTable->find(currentClassName)->second;
+    method_name = node->identifier_1->name;
+  }
+  
+  //search for method in base class
+  auto method_iter = class_info.methods->find(method_name);
+  //no base class method found, check for superclass method
+  if(method_iter == this->currentMethodTable->end()){
+    auto super_class_name = class_info.superClassName;
+    auto super_class_iter = this->classTable->find(super_class_name);
+    //check if the class has a valid superclass  
+    if(super_class_iter==this->classTable->end())
+      typeError(undefined_method);
+    auto super_class_info = super_class_iter->second;
+    method_iter = super_class_info.methods->find(node->identifier_1->name);
+    //superclass doesn't have method either
+    if(method_iter == super_class_info.methods->end())
+      typeError(undefined_method);
+  }
+  method_info = method_iter->second;
+
+  //check parameter size
+  if(node->expression_list->size() != method_info.parameters->size()) 
+    typeError(argument_number_mismatch); 
+  
+  //check parameter type
+  if(node->expression_list){
+    auto call_iter = node->expression_list->begin();
+    auto meth_iter = method_info.parameters->begin();
+    while(call_iter != node->expression_list->end()){
+      (*call_iter)->accept(this);
+      if((*call_iter)->basetype != meth_iter->baseType)
+        typeError(argument_type_mismatch);
+      if((*call_iter)->basetype==bt_object &&((*call_iter)->objectClassName!=meth_iter->objectClassName))
+        typeError(argument_type_mismatch);
+      call_iter++;
+      meth_iter++;
+    }
+  }
+  //update node type based on method return type
+  node->basetype = method_info.returnType.baseType;
+  node->objectClassName = method_info.returnType.objectClassName;
 }
 
 void TypeCheck::visitMemberAccessNode(MemberAccessNode* node) {
@@ -521,12 +604,21 @@ void TypeCheck::visitIdentifierNode(IdentifierNode* node) {
   */
   //check local variable first
   auto var_iter = this->currentVariableTable->find(node->name);
+  //check for member
   if(var_iter == this->currentVariableTable->end()){
-    //check member list
+    //check base class member list
     var_iter = this->classTable->find(currentClassName)->second.members->find(node->name);
-    //member list does not contain symbol
+    //base class member list does not contain symbol, check superclass
     if(var_iter == this->classTable->find(currentClassName)->second.members->end()){
-      typeError(undefined_variable);
+      auto superclass_name = this->classTable->find(this->currentClassName)->second.superClassName;
+      auto superclass_iter = this->classTable->find(superclass_name);
+      //no superclass
+      if(superclass_iter == this->classTable->end())
+        typeError(undefined_variable);
+      var_iter = superclass_iter->second.members->find(node->name);
+      //superclass does not contain member either
+      if(var_iter == superclass_iter->second.members->end())
+        typeError(undefined_variable);
     }
   }
   node->basetype = var_iter->second.type.baseType;
@@ -600,6 +692,8 @@ void print(MethodTable methodTable, int indent) {
   }
   std::cout << genIndent(indent) << "}";
 }
+
+
 
 void print(ClassTable classTable, int indent) {
   std::cout << genIndent(indent) << "ClassTable {" << std::endl;
