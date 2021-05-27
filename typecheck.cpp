@@ -505,7 +505,7 @@ void TypeCheck::visitMethodCallNode(MethodCallNode* node) {
   //search for method in base class
   auto method_iter = class_info.methods->find(method_name);
   //no base class method found, check for superclass method
-  if(method_iter == this->currentMethodTable->end()){
+  if(method_iter == class_info.methods->end()){
     auto super_class_name = class_info.superClassName;
     auto super_class_iter = this->classTable->find(super_class_name);
     //check if the class has a valid superclass  
