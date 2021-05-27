@@ -90,7 +90,12 @@ void TypeCheck::visitClassNode(ClassNode* node) {
   //initialize variableTable
   currentVariableTable = new VariableTable;
   if(node->identifier_2){
-    myInfo = {node->identifier_2->name, this->currentMethodTable, this->currentVariableTable};
+    if(this->classTable->find(node->identifier_2->name)==this->classTable->end()){
+      typeError(undefined_class);
+    }
+    else{
+      myInfo = {node->identifier_2->name, this->currentMethodTable, this->currentVariableTable};
+    }
   }
   else{
     myInfo = {"", this->currentMethodTable, this->currentVariableTable};
@@ -720,8 +725,6 @@ void print(MethodTable methodTable, int indent) {
   }
   std::cout << genIndent(indent) << "}";
 }
-
-
 
 void print(ClassTable classTable, int indent) {
   std::cout << genIndent(indent) << "ClassTable {" << std::endl;
